@@ -514,3 +514,6 @@ function read!(from::AbstractIOBuffer, p::Ptr, nb::Int)
     end
     p
 end
+
+const UnionType = Union
+export UnionType
