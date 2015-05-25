@@ -155,7 +155,7 @@ end
 function readuntil(s::IO, delim::Char)
     if delim < Char(0x80)
         data = readuntil(s, delim%UInt8)
-        enc = byte_string_classify(data)
+        enc = Base.Strings.byte_string_classify(data)
         return (enc==1) ? ASCIIString(data) : UTF8String(data)
     end
     out = IOBuffer()

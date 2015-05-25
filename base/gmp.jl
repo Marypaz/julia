@@ -6,9 +6,11 @@ export BigInt
 
 import Base: *, +, -, /, <, <<, >>, >>>, <=, ==, >, >=, ^, (~), (&), (|), ($),
              binomial, cmp, convert, div, divrem, factorial, fld, gcd, gcdx, lcm, mod,
-             ndigits, promote_rule, rem, show, isqrt, string, isprime, powermod,
-             sum, trailing_zeros, trailing_ones, count_ones, base, tryparse_internal,
+             ndigits, promote_rule, rem, show, isqrt, string, powermod,
+             sum, trailing_zeros, trailing_ones, count_ones, base,
              bin, oct, dec, hex, isequal, invmod, prevpow2, nextpow2, ndigits0z, widen, signed
+import Base.Strings: tryparse_internal
+import Base.Primes: isprime
 
 if Clong == Int32
     typealias ClongMax Union(Int8, Int16, Int32)

@@ -91,9 +91,11 @@ include("utf16.jl")
 include("utf32.jl")
 include("iobuffer.jl")
 include("string.jl")
+using .Strings
 include("utf8proc.jl")
 importall .UTF8proc
 include("regex.jl")
+using .RegexModule
 include("base64.jl")
 importall .Base64
 
@@ -118,11 +120,15 @@ include("task.jl")
 include("lock.jl")
 include("show.jl")
 include("stream.jl")
+import .Streams: reinit_stdio
 include("socket.jl")
+using .Sockets
 include("stat.jl")
+using .Stats
 include("fs.jl")
 importall .FS
 include("process.jl")
+using .Processes
 include("multimedia.jl")
 importall .Multimedia
 ccall(:jl_get_uv_hooks, Void, ()) # TODO: should put this in _init
@@ -206,6 +212,7 @@ importall .Enums
 include("serialize.jl")
 importall .Serializer
 include("multi.jl")
+using .Multiprocessing
 include("managers.jl")
 
 # code loading

@@ -2,10 +2,12 @@
 
 module REPL
 
+using Base.Multiprocessing: RemoteRef
+using Base.Streams: AsyncStream
 using Base.Meta
-using ..Terminals
-using ..LineEdit
-using ..REPLCompletions
+using Base.Terminals
+using Base.LineEdit
+using Base.REPLCompletions
 
 export
     BasicREPL,
@@ -13,7 +15,6 @@ export
     StreamREPL
 
 import Base:
-    AsyncStream,
     Display,
     display,
     writemime,

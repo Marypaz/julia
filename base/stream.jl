@@ -1,9 +1,13 @@
 # This file is a part of Julia. License is MIT: http://julialang.org/license
 
+module Streams
 #TODO: Move stdio detection from C to Julia (might require some Clang magic)
 include("uv_constants.jl")
 
-import .Libc: RawFD, dup
+using Base.Libc: RawFD, dup
+
+import Base: write
+import Base.Strings: println
 
 ## types ##
 typealias Callback Union(Function,Bool)
@@ -245,6 +249,12 @@ disassociate_julia_struct(uv) = disassociate_julia_struct(uv.handle)
 disassociate_julia_struct(handle::Ptr{Void}) =
     handle != C_NULL && ccall(:jl_uv_disassociate_julia_struct,Void,(Ptr{Void},),handle)
 
+function uvfinalize(uv)
+    close(uv)
+    disassociate_julia_struct(uv)
+    uv.handle = C_NULL
+end
+
 function init_stdio(handle)
     t = ccall(:jl_uv_handle_type,Int32,(Ptr{Void},),handle)
     if t == UV_FILE
@@ -286,9 +296,9 @@ function reinit_stdio()
     global uv_jl_connectcb = cglobal(:jl_uv_connectcb)
     global uv_jl_writecb_task = cglobal(:jl_uv_writecb_task)
     global uv_eventloop = ccall(:jl_global_event_loop, Ptr{Void}, ())
-    global STDIN = init_stdio(ccall(:jl_stdin_stream ,Ptr{Void},()))
-    global STDOUT = init_stdio(ccall(:jl_stdout_stream,Ptr{Void},()))
-    global STDERR = init_stdio(ccall(:jl_stderr_stream,Ptr{Void},()))
+    eval(Main, :(STDIN = Base.Streams.init_stdio(ccall(:jl_stdin_stream ,Ptr{Void},()))))
+    eval(Main, :(STDOUT = Base.Streams.init_stdio(ccall(:jl_stdout_stream,Ptr{Void},()))))
+    eval(Main, :(STDERR = Base.Streams.init_stdio(ccall(:jl_stderr_stream,Ptr{Void},()))))
 end
 
 function isopen{T<:Union(AsyncStream,UVServer)}(x::T)
@@ -540,7 +550,7 @@ function sleep(sec::Real)
 end
 
 ## event loop ##
-eventloop() = global uv_eventloop::Ptr{Void}
+eventloop() = uv_eventloop::Ptr{Void}
 #mkNewEventLoop() = ccall(:jl_new_event_loop,Ptr{Void},()) # this would probably be fine, but is nowhere supported
 
 function run_event_loop()
@@ -750,7 +760,7 @@ function uv_write(s::AsyncStream, p, n::Integer)
                     Int32,
                     (Ptr{Void}, Ptr{Void}, UInt, Ptr{Void}, Ptr{Void}),
                     handle(s), p, n, uvw,
-                    uv_jl_writecb_task::Ptr{Void})
+                    Base.uv_jl_writecb_task::Ptr{Void})
         if err < 0
             uv_error("write", err)
         end
@@ -1027,3 +1037,4 @@ end
 # If buffer_writes is called, it will delay notifying waiters till a flush is called.
 buffer_writes(s::BufferStream, bufsize=0) = (s.buffer_writes=true; s)
 flush(s::BufferStream) = (notify(s.r_c; all=true); s)
+end #module

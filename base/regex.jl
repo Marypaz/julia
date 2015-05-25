@@ -1,6 +1,13 @@
 # This file is a part of Julia. License is MIT: http://julialang.org/license
 
+module RegexModule
 ## object-oriented Regex interface ##
+
+using Base.Strings
+
+importall Base
+
+export @r_str, Regex, ismatch, match
 
 include("pcre.jl")
 
@@ -249,3 +256,5 @@ function eachmatch(re::Regex, str::AbstractString, ovr::Bool=false)
 end
 
 eachmatch(re::Regex, str::AbstractString) = RegexMatchIterator(re,str)
+
+end # module

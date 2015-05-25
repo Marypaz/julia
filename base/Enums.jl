@@ -56,7 +56,7 @@ macro enum(T,syms...)
         if !isa(i, Integer)
             throw(ArgumentError("invalid value for Enum $typename, $s=$i; values must be integers"))
         end
-        if !Base.isidentifier(s)
+        if !Base.Show.isidentifier(s)
             throw(ArgumentError("invalid name for Enum $typename; \"$s\" is not a valid identifier."))
         end
         push!(vals, (s,i))

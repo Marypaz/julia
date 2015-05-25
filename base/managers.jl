@@ -1,6 +1,9 @@
 # This file is a part of Julia. License is MIT: http://julialang.org/license
 
 # Built-in SSH and Local Managers
+module Managers
+
+using Base.Multiprocessing: ClusterManager, WorkerConfig
 
 immutable SSHManager <: ClusterManager
     machines::Dict
@@ -313,5 +316,5 @@ function kill(manager::ClusterManager, pid::Int, config::WorkerConfig)
                        # at our end, which will result in a cleanup of the worker.
     nothing
 end
-
+end # module
 

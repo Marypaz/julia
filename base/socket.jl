@@ -1,5 +1,12 @@
 # This file is a part of Julia. License is MIT: http://julialang.org/license
 
+module Sockets
+
+using Base.Streams: AsyncStream, Callback, Pipe, PipeServer, TTY, UVServer
+using Base.Strings
+
+export TCPSocket, UDPSocket
+
 ## IP ADDRESS HANDLING ##
 abstract IPAddr
 
@@ -724,3 +731,4 @@ function listenany(default_port)
         end
     end
 end
+end # module

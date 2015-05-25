@@ -1,5 +1,11 @@
 # This file is a part of Julia. License is MIT: http://julialang.org/license
 
+module Show
+
+using Base: fieldname
+using Base.RegexModule
+importall Base
+
 show(x) = show(STDOUT::IO, x)
 
 print(io::IO, s::Symbol) = (write(io,s);nothing)
@@ -1314,3 +1320,4 @@ end
 bitshow(B::BitArray) = bitshow(STDOUT, B)
 
 bitstring(B::BitArray) = sprint(bitshow, B)
+end # module

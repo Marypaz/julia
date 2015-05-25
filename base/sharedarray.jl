@@ -1,5 +1,9 @@
 # This file is a part of Julia. License is MIT: http://julialang.org/license
 
+module SharedArrays
+
+using Base.Multiprocessing: RemoteRef
+
 type SharedArray{T,N} <: DenseArray{T,N}
     dims::NTuple{N,Int}
     pids::Vector{Int}
@@ -412,3 +416,5 @@ end
 shm_unlink(shm_seg_name) = 0
 
 end # @windows_only
+
+end # module

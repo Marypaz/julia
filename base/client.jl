@@ -71,7 +71,7 @@ function repl_cmd(cmd, out)
         ENV["OLDPWD"] = new_oldpwd
         println(out, pwd())
     else
-        run(ignorestatus(@windows? cmd : (isa(STDIN, TTY) ? `$shell -i -c "($(shell_escape(cmd))) && true"` : `$shell -c "($(shell_escape(cmd))) && true"`)))
+        run(ignorestatus(@windows? cmd : (isa(STDIN, Base.Streams.TTY) ? `$shell -i -c "($(shell_escape(cmd))) && true"` : `$shell -c "($(shell_escape(cmd))) && true"`)))
     end
     nothing
 end
@@ -129,7 +129,7 @@ function eval_user_input(ast::ANY, show_value)
             bt = catch_backtrace()
         end
     end
-    isa(STDIN,TTY) && println()
+    isa(STDIN,Base.Streams.TTY) && println()
 end
 
 function repl_callback(ast::ANY, show_value)
@@ -215,9 +215,11 @@ function init_bind_addr()
             bind_addr = "127.0.0.1"
         end
     end
-    global LPROC
-    LPROC.bind_addr = bind_addr
-    LPROC.bind_port = UInt16(bind_port)
+    # global LPROC
+    # LPROC.bind_addr = bind_addr
+    # LPROC.bind_port = UInt16(bind_port)
+    Base.Multiprocessing.LPROC.bind_addr = bind_addr
+    Base.Multiprocessing.LPROC.bind_port = UInt16(bind_port)
 end
 
 # NOTE: This set of required arguments need to be kept in sync with the required arguments defined in ui/repl.c
@@ -375,17 +377,19 @@ function early_init()
 end
 
 function init_parallel()
-    start_gc_msgs_task()
-    atexit(terminate_all_workers)
+    Base.Multiprocessing.start_gc_msgs_task()
+    atexit(Base.Multiprocessing.terminate_all_workers)
 
     init_bind_addr()
 
     # start in "head node" mode, if worker, will override later.
-    global PGRP
-    global LPROC
-    LPROC.id = 1
-    assert(length(PGRP.workers) == 0)
-    register_worker(LPROC)
+    # global PGRP
+    # global LPROC
+    # LPROC.id = 1
+    Base.Multiprocessing.LPROC.id = 1
+    # assert(length(PGRP.workers) == 0)
+    assert(length(Base.Multiprocessing.PGRP.workers) == 0)
+    Base.Multiprocessing.register_worker(Base.Multiprocessing.LPROC)
 end
 
 import .Terminals
@@ -408,14 +412,14 @@ end
 
 function _start()
     opts = JLOptions()
-    try
+    # try
         (quiet,repl,startup,color_set,history_file) = process_options(opts,copy(ARGS))
 
         local term
         global active_repl
         global active_repl_backend
         if repl
-            if !isa(STDIN,TTY)
+            if !isa(STDIN,Base.Streams.TTY)
                 global is_interactive |= !isa(STDIN,Union(File,IOStream))
                 color_set || (global have_color = false)
             else
@@ -438,7 +442,7 @@ function _start()
         end
 
         if repl
-            if !isa(STDIN,TTY)
+            if !isa(STDIN,Base.Streams.TTY)
                 # note: currently IOStream is used for file STDIN
                 if isa(STDIN,File) || isa(STDIN,IOStream)
                     # reading from a file, behave like include
@@ -454,11 +458,11 @@ function _start()
                 active_repl_backend = REPL.run_repl(active_repl)
             end
         end
-    catch err
+    # catch err
         display_error(err,catch_backtrace())
         println()
         exit(1)
-    end
+    # end
     if is_interactive && have_color
         print(color_normal)
     end

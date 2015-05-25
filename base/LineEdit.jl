@@ -2,7 +2,9 @@
 
 module LineEdit
 
-using ..Terminals
+using Base.Strings
+
+using Base.Terminals
 
 import ..Terminals: raw!, width, height, cmove, getX,
                        getY, clear_line, beep

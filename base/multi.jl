@@ -57,6 +57,17 @@
 # * aggregate GC messages
 # * dynamically adding nodes (then always start with 1 and grow)
 
+module Multiprocessing
+
+using Base: localize_vars
+using Base.Streams: AsyncStream
+using Base.Sockets: TCPServer, TCPSocket
+using Base.Processes: Cmd, Process
+
+import Base: wait
+
+export @spawn, @spawnat, ProcessGroup, RemoteRef, atexit, myid, nprocs, take!
+
 ## workers and message i/o ##
 
 function send_msg_unknown(s::IO, kind, args)
@@ -1637,3 +1648,4 @@ function terminate_all_workers()
         end
     end
 end
+end # module

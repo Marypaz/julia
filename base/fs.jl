@@ -44,8 +44,9 @@ export File,
        S_IRGRP, S_IWGRP, S_IXGRP, S_IRWXG,
        S_IROTH, S_IWOTH, S_IXOTH, S_IRWXO
 
-import Base: uvtype, uvhandle, eventloop, fd, position, stat, close, write, read, read!, readbytes, isopen,
-            _sizeof_uv_fs, uv_error
+import Base: fd, position, stat, close, write, read, read!, readbytes, isopen
+import ..Streams: eventloop, uvtype, uvhandle, uv_error, _sizeof_uv_fs
+using ..Libc: RawFD
 
 include("file_constants.jl")
 

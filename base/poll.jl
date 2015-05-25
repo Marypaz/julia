@@ -1,5 +1,12 @@
 # This file is a part of Julia. License is MIT: http://julialang.org/license
 
+module Poll
+
+using Base.Streams: Callback, eventloop
+using Base.Libc: RawFD
+
+import Base: wait
+
 type FileMonitor
     handle::Ptr{Void}
     cb::Callback
@@ -336,3 +343,4 @@ function watch_file(cb, s; poll=false)
         return FileMonitor(cb,s)
     end
 end
+end # module

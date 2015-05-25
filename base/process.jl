@@ -1,5 +1,16 @@
 # This file is a part of Julia. License is MIT: http://julialang.org/license
 
+module Processes
+
+export @cmd, Cmd, run, spawn
+
+using Base.Streams: AsyncStream, Callback, UVHandle, UVStream, eventloop
+using Base.Libc: RawFD
+using Base.FS: File
+using Base.Strings: shell_parse
+
+import Base: wait
+
 abstract AbstractCmd
 
 type Cmd <: AbstractCmd
@@ -91,7 +102,7 @@ uvtype(::DevNullStream) = UV_STREAM
 uvhandle(x::RawFD) = convert(Ptr{Void}, x.fd % UInt)
 uvtype(x::RawFD) = UV_RAW_FD
 
-typealias Redirectable Union(UVStream, FS.File, FileRedirect, DevNullStream, IOStream, RawFD)
+typealias Redirectable Union(UVStream, File, FileRedirect, DevNullStream, IOStream, RawFD)
 
 type CmdRedirect <: AbstractCmd
     cmd::AbstractCmd
@@ -611,3 +622,4 @@ wait(x::Process)      = if !process_exited(x); stream_wait(x, x.exitnotify); end
 wait(x::ProcessChain) = for p in x.processes; wait(p); end
 
 show(io::IO, p::Process) = print(io, "Process(", p.cmd, ", ", process_status(p), ")")
+end # module

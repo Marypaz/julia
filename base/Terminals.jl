@@ -25,17 +25,21 @@ export
     raw!,
     writepos
 
+using Base.Streams: TTY
+
 import Base:
     flush,
     read,
     readuntil,
     size,
-    start_reading,
-    stop_reading,
     write,
     writemime,
-    reseteof,
     eof
+
+import Base.Streams:
+    start_reading,
+    stop_reading,
+    reseteof
 
 ## TextTerminal ##
 
@@ -113,9 +117,9 @@ end
 
 type TTYTerminal <: UnixTerminal
     term_type::ASCIIString
-    in_stream::Base.TTY
-    out_stream::Base.TTY
-    err_stream::Base.TTY
+    in_stream::TTY
+    out_stream::TTY
+    err_stream::TTY
 end
 
 reseteof(t::TTYTerminal) = reseteof(t.in_stream)
@@ -131,7 +135,7 @@ cmove_line_down(t::UnixTerminal, n) = (cmove_down(t, n); cmove_col(t, 0))
 cmove_col(t::UnixTerminal, n) = write(t.out_stream, "$(CSI)$(n)G")
 
 @windows_only begin
-    ispty(s::Base.TTY) = s.ispty
+    ispty(s::TTY) = s.ispty
     ispty(s) = false
 end
 @windows ? begin

@@ -1,6 +1,9 @@
 # This file is a part of Julia. License is MIT: http://julialang.org/license
 
+module MethodShow
 # Method and method-table pretty-printing
+
+using Base.Processes: @cmd
 
 function argtype_decl(n, t) # -> (argname, argtype)
     if isa(n,Expr)
@@ -163,3 +166,4 @@ end
 # override usual show method for Vector{Method}: don't abbreviate long lists
 writemime(io::IO, mime::MIME"text/plain", mt::AbstractVector{Method}) =
     showarray(io, mt, limit=false)
+end # module

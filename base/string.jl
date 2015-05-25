@@ -1,5 +1,15 @@
 # This file is a part of Julia. License is MIT: http://julialang.org/license
 
+module Strings
+
+importall Base
+
+import Base: write_sub
+
+export @mstr, String, SubString, chomp, chop, endswith, join, lpad, nextind, parse,
+    prevind, println, print_escaped, print_joined, replace, rstrip, split, startswith,
+    string, strip, strwidth
+
 ## core text I/O ##
 
 print(io::IO, x) = show(io, x)
@@ -1760,3 +1770,4 @@ pointer{T<:ByteString}(x::SubString{T}, i::Integer) = pointer(x.string.data) + x
 pointer(x::Union(UTF16String,UTF32String), i::Integer) = pointer(x)+(i-1)*sizeof(eltype(x.data))
 pointer{T<:Union(UTF16String,UTF32String)}(x::SubString{T}) = pointer(x.string.data) + x.offset*sizeof(eltype(x.data))
 pointer{T<:Union(UTF16String,UTF32String)}(x::SubString{T}, i::Integer) = pointer(x.string.data) + (x.offset + (i-1))*sizeof(eltype(x.data))
+end # module
