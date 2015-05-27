@@ -283,6 +283,7 @@ static Function *jlvboundserror_func;
 static Function *jlboundserrorv_func;
 static Function *jlcheckassign_func;
 static Function *jldeclareconst_func;
+static Function *jlgetbinding_func;
 static Function *jltopeval_func;
 static Function *jlcopyast_func;
 static Function *jltuple_func;
@@ -577,7 +578,7 @@ static int is_global(jl_sym_t *s, jl_codectx_t *ctx);
 static Value *make_gcroot(Value *v, jl_codectx_t *ctx, jl_sym_t *var = NULL);
 static Value *emit_boxed_rooted(jl_value_t *e, jl_codectx_t *ctx);
 static Value *global_binding_pointer(jl_module_t *m, jl_sym_t *s,
-                                     jl_binding_t **pbnd, bool assign);
+                                     jl_binding_t **pbnd, bool assign, jl_codectx_t *ctx);
 static Value *emit_checked_var(Value *bp, jl_sym_t *name, jl_codectx_t *ctx, bool isvol=false);
 static bool might_need_root(jl_value_t *ex);
 static Value *emit_condition(jl_value_t *cond, const std::string &msg, jl_codectx_t *ctx);
@@ -1814,7 +1815,7 @@ static Value *emit_getfield(jl_value_t *expr, jl_sym_t *name, jl_codectx_t *ctx)
 
     if (jl_is_module(expr)) {
         Value *bp =
-            global_binding_pointer((jl_module_t*)expr, name, NULL, false);
+            global_binding_pointer((jl_module_t*)expr, name, NULL, false, ctx);
         // todo: use type info to avoid undef check
         return emit_checked_var(bp, name, ctx);
     }
@@ -2710,16 +2711,39 @@ static int is_global(jl_sym_t *s, jl_codectx_t *ctx)
     return (it == ctx->vars.end());
 }
 
+static void undef_var_error_if_null(Value *v, jl_sym_t *name, jl_codectx_t *ctx)
+{
+    Value *ok = builder.CreateICmpNE(v, V_null);
+    BasicBlock *err = BasicBlock::Create(getGlobalContext(), "err", ctx->f);
+    BasicBlock *ifok = BasicBlock::Create(getGlobalContext(), "ok");
+    builder.CreateCondBr(ok, ifok, err);
+    builder.SetInsertPoint(err);
+    builder.CreateCall(prepare_call(jlundefvarerror_func), literal_pointer_val((jl_value_t*)name));
+    builder.CreateUnreachable();
+    ctx->f->getBasicBlockList().push_back(ifok);
+    builder.SetInsertPoint(ifok);
+}
+
 static Value *global_binding_pointer(jl_module_t *m, jl_sym_t *s,
-                                     jl_binding_t **pbnd, bool assign)
+                                     jl_binding_t **pbnd, bool assign, jl_codectx_t *ctx)
 {
     jl_binding_t *b=NULL;
-    if (!assign)
-        b = jl_get_binding(m, s);
-    // if b is NULL, this might be a global that is not set yet but will be,
-    // so get a pointer for writing even when not assigning.
-    if (assign || b==NULL)
+    if (assign) {
         b = jl_get_binding_wr(m, s);
+        assert(b != NULL);
+    }
+    else {
+        b = jl_get_binding(m, s);
+        if (b == NULL) {
+            // var not found. switch to delayed lookup.
+            // TODO: examine performance of this
+            Value *bval = builder.CreateCall2(prepare_call(jlgetbinding_func),
+                                              literal_pointer_val((jl_value_t*)m),
+                                              literal_pointer_val((jl_value_t*)s));
+            undef_var_error_if_null(bval, s, ctx);
+            return julia_binding_gv(builder.CreateBitCast(bval,jl_ppvalue_llvmt));
+        }
+    }
     if (pbnd) *pbnd = b;
     return julia_binding_gv(b);
 }
@@ -2740,7 +2764,7 @@ static Value *var_binding_pointer(jl_sym_t *s, jl_binding_t **pbnd,
         s = jl_symbolnode_sym(s);
     assert(jl_is_symbol(s));
     if (is_global(s, ctx)) {
-        return global_binding_pointer(ctx->module, s, pbnd, assign);
+        return global_binding_pointer(ctx->module, s, pbnd, assign, ctx);
     }
     jl_varinfo_t &vi = ctx->vars[s];
     if (vi.closureidx != -1) {
@@ -2773,17 +2797,8 @@ static Value *emit_checked_var(Value *bp, jl_sym_t *name, jl_codectx_t *ctx, boo
     // in unreachable code, there might be a poorly-typed instance of a variable
     // that has a concrete type everywhere it's actually used. tolerate this
     // situation by just skipping the NULL check if it wouldn't be valid. (issue #7836)
-    if (v->getType() == jl_pvalue_llvmt) {
-        Value *ok = builder.CreateICmpNE(v, V_null);
-        BasicBlock *err = BasicBlock::Create(getGlobalContext(), "err", ctx->f);
-        BasicBlock *ifok = BasicBlock::Create(getGlobalContext(), "ok");
-        builder.CreateCondBr(ok, ifok, err);
-        builder.SetInsertPoint(err);
-        builder.CreateCall(prepare_call(jlundefvarerror_func), literal_pointer_val((jl_value_t*)name));
-        builder.CreateUnreachable();
-        ctx->f->getBasicBlockList().push_back(ifok);
-        builder.SetInsertPoint(ifok);
-    }
+    if (v->getType() == jl_pvalue_llvmt)
+        undef_var_error_if_null(v, name, ctx);
     return v;
 }
 
@@ -2808,8 +2823,7 @@ static Value *emit_var(jl_sym_t *sym, jl_value_t *ty, jl_codectx_t *ctx, bool is
         Value *bp = var_binding_pointer(sym, &jbp, false, ctx);
         if (bp == NULL)
             return NULL;
-        assert(jbp != NULL);
-        if (jbp->value != NULL) {
+        if (jbp && jbp->value != NULL) {
             if (jbp->constp) {
                 if (!isboxed && jl_isbits(jl_typeof(jbp->value)))
                     return emit_unboxed(jbp->value, ctx);
@@ -5168,6 +5182,12 @@ static void init_julia_llvm_env(Module *m)
                          Function::ExternalLinkage,
                          "jl_declare_constant", m);
     add_named_global(jldeclareconst_func, (void*)&jl_declare_constant);
+
+    jlgetbinding_func =
+        Function::Create(FunctionType::get(jl_pvalue_llvmt, args_2ptrs, false),
+                         Function::ExternalLinkage,
+                         "jl_get_binding", m);
+    add_named_global(jlgetbinding_func, (void*)&jl_get_binding);
 
     builtin_func_map[jl_f_is] = jlcall_func_to_llvm("jl_f_is", (void*)&jl_f_is, m);
     builtin_func_map[jl_f_typeof] = jlcall_func_to_llvm("jl_f_typeof", (void*)&jl_f_typeof, m);
