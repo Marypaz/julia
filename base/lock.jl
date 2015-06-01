@@ -35,3 +35,27 @@ function unlock(rl::ReentrantLock)
     end
     return rl
 end
+
+type Semaphore
+    cnt::Int
+    n_acq::Int
+    c::Condition
+    Semaphore(cnt) = new(cnt, 0, Condition())
+end
+
+function acquire(s::Semaphore)
+    while true
+        if s.n_acq < s.cnt
+            s.n_acq = s.n_acq + 1
+            return
+        else
+            wait(s.c)
+        end
+    end
+end
+
+function release(s::Semaphore)
+    s.n_acq = s.n_acq - 1
+    notify(s.c; all=false)
+end
+
