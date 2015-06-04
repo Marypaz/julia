@@ -810,7 +810,7 @@ DLLEXPORT jl_nullable_float64_t jl_try_substrtod(char *str, size_t offset, size_
     if (bstr != str+offset)
         free(bstr);
 
-    jl_nullable_float64_t ret = {(uint8_t)err, out};
+    jl_nullable_float64_t ret = {out, (uint8_t)err};
     return ret;
 }
 
@@ -866,7 +866,7 @@ DLLEXPORT jl_nullable_float32_t jl_try_substrtof(char *str, size_t offset, size_
     if (bstr != str+offset)
         free(bstr);
 
-    jl_nullable_float32_t ret = {(uint8_t)err, out};
+    jl_nullable_float32_t ret = {out, (uint8_t)err};
     return ret;
 }
 

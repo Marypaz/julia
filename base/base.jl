@@ -102,9 +102,9 @@ function cell_2d(nr, nc, xs::ANY...)
 end
 
 immutable Nullable{T}
-    isnull::Bool
     value::T
+    isnull::Bool
 
-    Nullable() = new(true)
-    Nullable(value::T) = new(false, value)
+    Nullable() = (x = new(); x.isnull = true; x)
+    Nullable(value::T, isnull::Bool) = new(value, isnull)
 end
