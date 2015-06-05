@@ -2,10 +2,16 @@
 
 module Sockets
 
-using Base.Streams: AsyncStream, Callback, Pipe, PipeServer, TTY, UVServer
+using Base.Streams: AsyncStream, Callback, Pipe, PipeServer, StatusInit, StatusOpen,
+    StatusUninit, TTY, UVServer, associate_julia_struct, disassociate_julia_struct,
+    eventloop, uv_error
 using Base.Strings
 
-export TCPSocket, UDPSocket
+import Base: print
+import Base.Streams: connect, connect!, _uv_hook_close
+import Base.Show: show
+
+export TCPSocket, UDPSocket, getaddrinfo, getipaddr, listenany, parseip
 
 ## IP ADDRESS HANDLING ##
 abstract IPAddr
@@ -284,7 +290,7 @@ type TCPSocket <: Socket
     )
 end
 function TCPSocket()
-    this = TCPSocket(Libc.malloc(_sizeof_uv_tcp))
+    this = TCPSocket(Libc.malloc(Base.Streams._sizeof_uv_tcp))
     associate_julia_struct(this.handle,this)
     finalizer(this,uvfinalize)
     err = ccall(:uv_tcp_init,Cint,(Ptr{Void},Ptr{Void}),
@@ -315,7 +321,7 @@ type TCPServer <: UVServer
     )
 end
 function TCPServer()
-    this = TCPServer(Libc.malloc(_sizeof_uv_tcp))
+    this = TCPServer(Libc.malloc(Base.Streams._sizeof_uv_tcp))
     associate_julia_struct(this.handle, this)
     finalizer(this,uvfinalize)
     err = ccall(:uv_tcp_init,Cint,(Ptr{Void},Ptr{Void}),
@@ -683,12 +689,12 @@ end
 
 ##
 
-listen(sock::UVServer; backlog::Integer=BACKLOG_DEFAULT) = (uv_error("listen",_listen(sock;backlog=backlog)); sock)
+listen(sock::UVServer; backlog::Integer=BACKLOG_DEFAULT) = (uv_error("listen",Base.Streams._listen(sock;backlog=backlog)); sock)
 
 function listen(addr; backlog::Integer=BACKLOG_DEFAULT)
     sock = TCPServer()
     !bind(sock,addr) && error("cannot bind to port; may already be in use or access denied")
-    uv_error("listen",_listen(sock;backlog=backlog))
+    uv_error("listen",Base.Streams._listen(sock;backlog=backlog))
     sock
 end
 listen(port::Integer; backlog::Integer=BACKLOG_DEFAULT) = listen(IPv4(UInt32(0)),port;backlog=backlog)
@@ -721,7 +727,7 @@ function listenany(default_port)
     addr = InetAddr(IPv4(UInt32(0)),default_port)
     while true
         sock = TCPServer()
-        if bind(sock,addr) && _listen(sock) == 0
+        if bind(sock,addr) && Base.Streams._listen(sock) == 0
             return (addr.port,sock)
         end
         close(sock)

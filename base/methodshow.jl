@@ -5,6 +5,8 @@ module MethodShow
 
 using Base.Processes: @cmd
 
+import Base.Show: show
+
 function argtype_decl(n, t) # -> (argname, argtype)
     if isa(n,Expr)
         n = n.args[1]  # handle n::T in arg list
@@ -17,7 +19,7 @@ function argtype_decl(n, t) # -> (argname, argtype)
     if t === Any && !isempty(s)
         return s, ""
     end
-    if isvarargtype(t)
+    if Base.isvarargtype(t)
         if t.parameters[1] === Any
             return string(s, "..."), ""
         else
@@ -33,7 +35,7 @@ function arg_decl_parts(m::Method)
         tv = svec(tv)
     end
     li = m.func.code
-    e = uncompressed_ast(li)
+    e = Base.uncompressed_ast(li)
     argnames = e.args[1]
     s = symbol("?")
     decls = [argtype_decl(get(argnames,i,s), m.sig.parameters[i]) for i=1:length(m.sig.parameters)]

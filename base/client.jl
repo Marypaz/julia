@@ -134,7 +134,7 @@ end
 
 function repl_callback(ast::ANY, show_value)
     global _repl_enough_stdin = true
-    Base.stop_reading(STDIN)
+    Base.Streams.stop_reading(STDIN)
     put!(repl_channel, (ast, show_value))
 end
 
@@ -270,7 +270,7 @@ let reqarg = Set(UTF8String["--home",          "-H",
 
             # startup worker
             if opts.worker != 0
-                start_worker() # does not return
+                Base.Multiprocessing.start_worker() # does not return
             end
             # add processors
             if opts.nprocs > 0
@@ -365,7 +365,8 @@ function load_machine_file(path::AbstractString)
 end
 
 function early_init()
-    global const JULIA_HOME = ccall(:jl_get_julia_home, Any, ())
+    # global const JULIA_HOME = ccall(:jl_get_julia_home, Any, ())
+    eval(Base, :(const JULIA_HOME = ccall(:jl_get_julia_home, Any, ())))
     # make sure OpenBLAS does not set CPU affinity (#1070, #9639)
     ENV["OPENBLAS_MAIN_FREE"] = get(ENV, "OPENBLAS_MAIN_FREE",
                                     get(ENV, "GOTOBLAS_MAIN_FREE", "1"))
@@ -412,7 +413,7 @@ end
 
 function _start()
     opts = JLOptions()
-    # try
+    try
         (quiet,repl,startup,color_set,history_file) = process_options(opts,copy(ARGS))
 
         local term
@@ -458,11 +459,11 @@ function _start()
                 active_repl_backend = REPL.run_repl(active_repl)
             end
         end
-    # catch err
+    catch err
         display_error(err,catch_backtrace())
         println()
         exit(1)
-    # end
+    end
     if is_interactive && have_color
         print(color_normal)
     end

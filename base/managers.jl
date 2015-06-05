@@ -5,6 +5,11 @@ module Managers
 
 using Base.Multiprocessing: ClusterManager, WorkerConfig
 
+import Base.Streams: connect
+import Base.Multiprocessing: addprocs
+
+export launch
+
 immutable SSHManager <: ClusterManager
     machines::Dict
 
@@ -190,7 +195,7 @@ function launch(manager::LocalManager, params::Dict, launched::Array, c::Conditi
 
     for i in 1:manager.np
         io, pobj = open(detach(
-            setenv(`$(julia_cmd(exename)) $exeflags --bind-to $(LPROC.bind_addr) --worker`, dir=dir)), "r")
+            setenv(`$(Base.julia_cmd(exename)) $exeflags --bind-to $(Base.Multiprocessing.LPROC.bind_addr) --worker`, dir=dir)), "r")
         wconfig = WorkerConfig()
         wconfig.process = pobj
         wconfig.io = io
@@ -220,7 +225,7 @@ function connect(manager::ClusterManager, pid::Int, config::WorkerConfig)
 
     # master connecting to workers
     if !isnull(config.io)
-        (bind_addr, port) = read_worker_host_port(get(config.io))
+        (bind_addr, port) = Base.Multiprocessing.read_worker_host_port(get(config.io))
         pubhost=get(config.host, bind_addr)
         config.host = pubhost
         config.port = port
@@ -285,7 +290,7 @@ end
 
 function connect_to_worker(host::AbstractString, port::Integer)
     # Connect to the loopback port if requested host has the same ipaddress as self.
-    if host == string(LPROC.bind_addr)
+    if host == string(Base.Multiprocessing.LPROC.bind_addr)
         s = connect("127.0.0.1", UInt16(port))
     else
         s = connect(host, UInt16(port))

@@ -7,7 +7,7 @@ using Base.Strings
 
 importall Base
 
-export @r_str, Regex, ismatch, match
+export @r_str, Regex, ismatch, match, matchall
 
 include("pcre.jl")
 

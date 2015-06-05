@@ -2,7 +2,7 @@
 
 module Stats
 
-export isfile
+export isdir, isfile
 
 using Base.Libc: RawFD
 

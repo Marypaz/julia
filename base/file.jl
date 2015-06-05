@@ -5,12 +5,12 @@
 function pwd()
     b = Array(UInt8,1024)
     len = Csize_t[length(b),]
-    uv_error(:getcwd, ccall(:uv_cwd, Cint, (Ptr{UInt8}, Ptr{Csize_t}), b, len))
+    Base.Streams.uv_error(:getcwd, ccall(:uv_cwd, Cint, (Ptr{UInt8}, Ptr{Csize_t}), b, len))
     bytestring(b[1:len[1]-1])
 end
 
 function cd(dir::AbstractString)
-    uv_error("chdir $dir", ccall(:uv_chdir, Cint, (Cstring,), dir))
+    Base.Streams.uv_error("chdir $dir", ccall(:uv_chdir, Cint, (Cstring,), dir))
 end
 cd() = cd(homedir())
 

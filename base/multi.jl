@@ -59,14 +59,15 @@
 
 module Multiprocessing
 
-using Base: localize_vars
+using Base: AnyDict, localize_vars
 using Base.Streams: AsyncStream
 using Base.Sockets: TCPServer, TCPSocket
 using Base.Processes: Cmd, Process
 
 import Base: wait
 
-export @spawn, @spawnat, ProcessGroup, RemoteRef, atexit, myid, nprocs, take!
+export @everywhere, @spawn, @spawnat, ProcessGroup, RemoteRef, addprocs, atexit,
+    myid, nprocs, pmap, put!, take!
 
 ## workers and message i/o ##
 
@@ -616,7 +617,7 @@ function run_work_thunk(thunk)
         result = thunk()
     catch err
         print(STDERR, "exception on ", myid(), ": ")
-        display_error(err,catch_backtrace())
+        Base.display_error(err,catch_backtrace())
         result = err
     end
     result
@@ -791,7 +792,7 @@ function deliver_result(sock::IO, msg, oid, value)
         # terminate connection in case of serialization error
         # otherwise the reading end would hang
         print(STDERR, "fatal error on ", myid(), ": ")
-        display_error(e, catch_backtrace())
+        Base.display_error(e, catch_backtrace())
         wid = worker_id_from_socket(sock)
         close(sock)
         if myid()==1
@@ -822,7 +823,7 @@ end
 function process_messages(r_stream::TCPSocket, w_stream::TCPSocket; kwargs...)
     @schedule begin
         disable_nagle(r_stream)
-        Base.start_reading(r_stream)
+        Base.Streams.start_reading(r_stream)
         wait_connected(r_stream)
         if r_stream != w_stream
             disable_nagle(w_stream)
@@ -948,7 +949,7 @@ function create_message_handler_loop(r_stream::AsyncStream, w_stream::AsyncStrea
             if iderr == 1
                 if isopen(w_stream)
                     print(STDERR, "fatal error on ", myid(), ": ")
-                    display_error(e, catch_backtrace())
+                    Base.display_error(e, catch_backtrace())
                 end
                 exit(1)
             end
@@ -982,7 +983,7 @@ end
 # The entry point for julia worker processes. does not return. Used for TCP transport.
 # Cluster managers implementing their own transport will provide their own.
 # Argument is descriptor to write listening port # to.
-start_worker() = start_worker(STDOUT)
+start_worker() = start_worker(Base.STDOUT)
 function start_worker(out::IO)
     # we only explicitly monitor worker STDOUT on the console, so redirect
     # stderr to stdout so we can see the output.
@@ -1059,6 +1060,9 @@ function read_worker_host_port(io::IO)
 end
 
 function parse_connection_info(str)
+    if length(str) > 0
+        ccall(:jl_breakpoint, Any, (Any,), str)
+    end
     m = match(r"^julia_worker:(\d+)#(.*)", str)
     if m != nothing
         (m.captures[2], parse(Int16, m.captures[1]))
@@ -1067,7 +1071,7 @@ function parse_connection_info(str)
     end
 end
 
-function init_worker(manager::ClusterManager=DefaultClusterManager())
+function init_worker(manager::ClusterManager=Base.Managers.DefaultClusterManager())
     # On workers, the default cluster manager connects via TCP sockets. Custom
     # transports will need to call this function with their own manager.
     global cluster_manager
@@ -1110,7 +1114,7 @@ end
 
 default_addprocs_params() = AnyDict(
     :dir      => pwd(),
-    :exename  => joinpath(JULIA_HOME,julia_exename()),
+    :exename  => joinpath(JULIA_HOME,Base.julia_exename()),
     :exeflags => ``)
 
 
@@ -1325,7 +1329,7 @@ let nextidx = 0
     end
 end
 
-spawnat(p, thunk) = sync_add(remotecall(p, thunk))
+spawnat(p, thunk) = Base.sync_add(remotecall(p, thunk))
 
 spawn_somewhere(thunk) = spawnat(chooseproc(thunk),thunk)
 
@@ -1354,7 +1358,7 @@ end
 
 function at_each(f, args...)
     for w in PGRP.workers
-        sync_add(remotecall(w.id, f, args...))
+        Base.sync_add(remotecall(w.id, f, args...))
     end
 end
 

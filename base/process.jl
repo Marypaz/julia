@@ -2,14 +2,16 @@
 
 module Processes
 
-export @cmd, Cmd, run, spawn
+export @cmd, Cmd, detach, run, setenv, spawn
 
-using Base.Streams: AsyncStream, Callback, UVHandle, UVStream, eventloop
+using Base.Streams: AsyncStream, Callback, Pipe, UVHandle, UVStream, close_pipe_sync,
+    eventloop, link_pipe
 using Base.Libc: RawFD
 using Base.FS: File
 using Base.Strings: shell_parse
 
-import Base: wait
+import Base: open, wait
+import Base.Streams: uvhandle, uvtype, _uv_hook_close
 
 abstract AbstractCmd
 
@@ -95,8 +97,8 @@ const DevNull = DevNullStream()
 copy(::DevNullStream) = DevNull
 uvhandle(::DevNullStream) = C_NULL
 uvhandle(x::Ptr) = x
-uvtype(::Ptr) = UV_STREAM
-uvtype(::DevNullStream) = UV_STREAM
+uvtype(::Ptr) = Base.Streams.UV_STREAM
+uvtype(::DevNullStream) = Base.Streams.UV_STREAM
 
 # Not actually a pointer, but that's how we pass it through the C API so it's fine
 uvhandle(x::RawFD) = convert(Ptr{Void}, x.fd % UInt)
@@ -223,7 +225,7 @@ typealias ProcessChainOrNot Union(Bool,ProcessChain)
 
 function _jl_spawn(cmd, argv, loop::Ptr{Void}, pp::Process,
                    in, out, err)
-    proc = Libc.malloc(_sizeof_uv_process)
+    proc = Libc.malloc(Base.Streams._sizeof_uv_process)
     error = ccall(:jl_spawn, Int32,
         (Ptr{UInt8}, Ptr{Ptr{UInt8}}, Ptr{Void}, Ptr{Void}, Any, Int32,
          Ptr{Void}, Int32, Ptr{Void}, Int32, Ptr{Void}, Int32, Ptr{Ptr{UInt8}}, Ptr{UInt8}),
@@ -231,17 +233,17 @@ function _jl_spawn(cmd, argv, loop::Ptr{Void}, pp::Process,
          uvhandle(in), uvtype(out), uvhandle(out), uvtype(err), uvhandle(err),
          pp.cmd.detach, pp.cmd.env === nothing ? C_NULL : pp.cmd.env, isempty(pp.cmd.dir) ? C_NULL : pp.cmd.dir)
     if error != 0
-        disassociate_julia_struct(proc)
+        Base.Streams.disassociate_julia_struct(proc)
         ccall(:jl_forceclose_uv, Void, (Ptr{Void},), proc)
         throw(UVError("could not spawn "*string(pp.cmd), error))
     end
-    associate_julia_struct(proc, pp)
+    Base.Streams.associate_julia_struct(proc, pp)
     return proc
 end
 
 function uvfinalize(proc::Process)
     proc.handle != C_NULL && ccall(:jl_close_uv, Void, (Ptr{Void},), proc.handle)
-    disassociate_julia_struct(proc)
+    Base.Streams.disassociate_julia_struct(proc)
     proc.handle = C_NULL
 end
 
@@ -445,7 +447,7 @@ eachline(cmd::AbstractCmd) = eachline(cmd, DevNull)
 function open(cmds::AbstractCmd, mode::AbstractString="r", stdio::AsyncStream=DevNull)
     if mode == "r"
         processes = @tmp_rpipe out tmp spawn(false, cmds, (stdio,tmp,STDERR))
-        start_reading(out)
+        Base.Streams.start_reading(out)
         (out, processes)
     elseif mode == "w"
         processes = @tmp_wpipe tmp inpipe spawn(false, cmds, (tmp,stdio,STDERR))

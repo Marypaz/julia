@@ -172,7 +172,7 @@ function versioninfo(io::IO=STDOUT, verbose::Bool=false)
         println(io,         "Memory: $(Sys.total_memory()/2^30) GB ($(Sys.free_memory()/2^20) MB free)")
         try println(io,     "Uptime: $(Sys.uptime()) sec") end
         print(io,           "Load Avg: ")
-        print_matrix(io,    Sys.loadavg()')
+        Base.Show.print_matrix(io,    Sys.loadavg()')
         println(io          )
         Sys.cpu_summary(io)
         println(io          )

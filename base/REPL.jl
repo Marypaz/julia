@@ -2,8 +2,8 @@
 
 module REPL
 
-using Base.Multiprocessing: RemoteRef
-using Base.Streams: AsyncStream
+using Base.Multiprocessing: RemoteRef, put!
+using Base.Streams: AsyncStream, reseteof, start_reading
 using Base.Meta
 using Base.Terminals
 using Base.LineEdit
@@ -20,7 +20,7 @@ import Base:
     writemime,
     AnyDict
 
-import ..LineEdit:
+import Base.LineEdit:
     CompletionProvider,
     HistoryProvider,
     add_history,
@@ -184,7 +184,7 @@ function run_frontend(repl::BasicREPL, backend::REPLBackendRef)
     repl_channel, response_channel = backend.repl_channel, backend.response_channel
     hit_eof = false
     while true
-        Base.reseteof(repl.terminal)
+        reseteof(repl.terminal)
         write(repl.terminal, "julia> ")
         line = ""
         ast = nothing
@@ -766,8 +766,8 @@ function setup_interface(repl::LineEditREPL; hascolor = repl.hascolor, extra_rep
             input = readuntil(ps.terminal, "\e[201~")[1:(end-6)]
             input = replace(input, '\r', '\n')
             if position(LineEdit.buffer(s)) == 0
-                indent = Base.indentation(input)[1]
-                input = Base.unindent(lstrip(input), indent)
+                indent = Base.Strings.indentation(input)[1]
+                input = Base.Strings.unindent(lstrip(input), indent)
             end
             buf = copy(LineEdit.buffer(s))
             edit_insert(buf,input)
@@ -801,11 +801,11 @@ function setup_interface(repl::LineEditREPL; hascolor = repl.hascolor, extra_rep
                     LineEdit.commit_line(s)
                     # This is slightly ugly but ok for now
                     terminal = LineEdit.terminal(s)
-                    Base.stop_reading(terminal)
+                    Base.Streams.stop_reading(terminal)
                     raw!(terminal, false) && disable_bracketed_paste(terminal)
                     LineEdit.mode(s).on_done(s, LineEdit.buffer(s), true)
                     raw!(terminal, true) && enable_bracketed_paste(terminal)
-                    Base.start_reading(terminal)
+                    start_reading(terminal)
                 else
                     break
                 end

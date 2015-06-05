@@ -4,11 +4,11 @@ module Strings
 
 importall Base
 
-import Base: write_sub
+import Base: containsnul, unsafe_convert, write_sub
 
-export @mstr, String, SubString, chomp, chop, endswith, join, lpad, nextind, parse,
-    prevind, println, print_escaped, print_joined, replace, rstrip, split, startswith,
-    string, strip, strwidth
+export @mstr, String, SubString, chomp, chop, endswith, isascii, join, lpad, lstrip,
+    nextind, parse, prevind, println, print_escaped, print_joined, replace, rstrip,
+    split, startswith, string, strip, strwidth
 
 ## core text I/O ##
 
@@ -1494,6 +1494,7 @@ strip(s::AbstractString, chars::Chars) = lstrip(rstrip(s, chars), chars)
 ## string to integer functions ##
 
 function parse{T<:Integer}(::Type{T}, c::Char, base::Integer=36)
+    call(:jl_breakpoint, Any, ())
     a::Int = (base <= 36 ? 10 : 36)
     2 <= base <= 62 || throw(ArgumentError("invalid base: base must be 2 ≤ base ≤ 62, got $base"))
     d = '0' <= c <= '9' ? c-'0'    :
@@ -1736,7 +1737,7 @@ bytes2hex{T<:UInt8}(arr::Vector{T}) = join([hex(i,2) for i in arr])
 
 function repr(x)
     s = IOBuffer()
-    showall(s, x)
+    Base.Show.showall(s, x)
     takebuf_string(s)
 end
 

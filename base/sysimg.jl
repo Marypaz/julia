@@ -119,8 +119,9 @@ include("nullable.jl")
 include("task.jl")
 include("lock.jl")
 include("show.jl")
+using .Show
 include("stream.jl")
-import .Streams: reinit_stdio
+using .Streams
 include("socket.jl")
 using .Sockets
 include("stat.jl")
@@ -188,6 +189,7 @@ big(x::FloatingPoint) = convert(BigFloat,x)
 big(q::Rational) = big(num(q))//big(den(q))
 
 include("combinatorics.jl")
+using .Combinatorics
 
 # more hashing definitions
 include("hashing2.jl")
@@ -214,6 +216,7 @@ importall .Serializer
 include("multi.jl")
 using .Multiprocessing
 include("managers.jl")
+using .Managers
 
 # code loading
 include("loading.jl")
@@ -312,9 +315,9 @@ include("basedocs.jl")
 
 function __init__()
     # Base library init
-    reinit_stdio()
+    Streams.reinit_stdio()
     Multimedia.reinit_displays() # since Multimedia.displays uses STDOUT as fallback
-    fdwatcher_init()
+    Poll.fdwatcher_init()
     early_init()
     init_load_path()
     init_parallel()

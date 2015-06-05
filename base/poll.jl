@@ -2,10 +2,12 @@
 
 module Poll
 
-using Base.Streams: Callback, eventloop
+using Base.Streams: Callback, associate_julia_struct, disassociate_julia_struct,
+    eventloop, uv_error
 using Base.Libc: RawFD
 
-import Base: wait
+import Base: close, wait
+import Base.Streams: _uv_hook_close
 
 type FileMonitor
     handle::Ptr{Void}

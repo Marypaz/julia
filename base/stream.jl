@@ -6,8 +6,11 @@ include("uv_constants.jl")
 
 using Base.Libc: RawFD, dup
 
-import Base: write
+import Base: close, eof, flush, nb_available, read, write
 import Base.Strings: println
+import Base.Show: show
+
+export connect, sleep
 
 ## types ##
 typealias Callback Union(Function,Bool)
@@ -296,9 +299,9 @@ function reinit_stdio()
     global uv_jl_connectcb = cglobal(:jl_uv_connectcb)
     global uv_jl_writecb_task = cglobal(:jl_uv_writecb_task)
     global uv_eventloop = ccall(:jl_global_event_loop, Ptr{Void}, ())
-    eval(Main, :(STDIN = Base.Streams.init_stdio(ccall(:jl_stdin_stream ,Ptr{Void},()))))
-    eval(Main, :(STDOUT = Base.Streams.init_stdio(ccall(:jl_stdout_stream,Ptr{Void},()))))
-    eval(Main, :(STDERR = Base.Streams.init_stdio(ccall(:jl_stderr_stream,Ptr{Void},()))))
+    eval(Base, :(STDIN = Base.Streams.init_stdio(ccall(:jl_stdin_stream ,Ptr{Void},()))))
+    eval(Base, :(STDOUT = Base.Streams.init_stdio(ccall(:jl_stdout_stream,Ptr{Void},()))))
+    eval(Base, :(STDERR = Base.Streams.init_stdio(ccall(:jl_stderr_stream,Ptr{Void},()))))
 end
 
 function isopen{T<:Union(AsyncStream,UVServer)}(x::T)
@@ -371,7 +374,7 @@ end
 ## BUFFER ##
 ## Allocate a simple buffer
 function alloc_request(buffer::IOBuffer, recommended_size::UInt)
-    ensureroom(buffer, Int(recommended_size))
+    Base.ensureroom(buffer, Int(recommended_size))
     ptr = buffer.append ? buffer.size + 1 : buffer.ptr
     return (pointer(buffer.data, ptr), length(buffer.data)-ptr+1)
 end
@@ -430,7 +433,7 @@ function _uv_hook_readcb(stream::AsyncStream, nread::Int, base::Ptr{Void}, len::
     # Stop reading when
     # 1) when we have an infinite buffer, and we have accumulated a lot of unread data OR
     # 2) we have an alternate buffer that has reached its limit.
-    if (is_maxsize_unlimited(stream.buffer) && (nb_available(stream.buffer) > READ_BUFFER_SZ )) ||
+    if (Base.is_maxsize_unlimited(stream.buffer) && (nb_available(stream.buffer) > READ_BUFFER_SZ )) ||
        (nb_available(stream.buffer) == stream.buffer.maxsize)
         stop_reading(stream)
     end
@@ -760,7 +763,7 @@ function uv_write(s::AsyncStream, p, n::Integer)
                     Int32,
                     (Ptr{Void}, Ptr{Void}, UInt, Ptr{Void}, Ptr{Void}),
                     handle(s), p, n, uvw,
-                    Base.uv_jl_writecb_task::Ptr{Void})
+                    Base.Streams.uv_jl_writecb_task::Ptr{Void})
         if err < 0
             uv_error("write", err)
         end

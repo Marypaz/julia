@@ -25,7 +25,7 @@ export
     raw!,
     writepos
 
-using Base.Streams: TTY
+using Base.Streams: TTY, uv_error
 
 import Base:
     flush,
@@ -175,7 +175,7 @@ let s = zeros(Int32, 2)
                 return 24,80
             end
         end
-        Base.uv_error("size (TTY)", ccall(:uv_tty_get_winsize,
+        uv_error("size (TTY)", ccall(:uv_tty_get_winsize,
                                           Int32, (Ptr{Void}, Ptr{Int32}, Ptr{Int32}),
                                           t.out_stream.handle, pointer(s,1), pointer(s,2)) != 0)
         w,h = s[1],s[2]
